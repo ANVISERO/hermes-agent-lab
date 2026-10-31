@@ -1,0 +1,25 @@
+services:
+  hermes:
+    # init.sh pins the downloaded image digest in the local .env file.
+    image: ${HERMES_IMAGE:?Run bash scripts/init.sh first}
+    container_name: hermes-agent-lab
+    # The Docker daemon must also be enabled at host boot.
+    restart: unless-stopped
+    command: ["gateway", "run"]
+    # Keep the official /init entrypoint: it prepares volumes, then drops UID.
+    environment:
+      HERMES_UID: ${HERMES_UID:?Run bash scripts/init.sh first}
+      HERMES_GID: ${HERMES_GID:?Run bash scripts/init.sh first}
+    volumes:
+      # Setup and the persistent gateway use exactly the same data directory.
+      - ./data:/opt/data
+      - ./workspace:/workspace
+    working_dir: /workspace
+    # No host home, SSH keys or Docker socket. No published ports for polling.
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

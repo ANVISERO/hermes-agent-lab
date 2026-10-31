@@ -1,1 +1,110 @@
-# hermes-agent-lab
+# Hermes Agent Lab — P1
+
+Практическая работа: развернуть автономного агента на отдельном зарубежном VPS, подключить Telegram и доказать автономность и ограничение доступа.
+
+**Статус:** файлы для развёртывания подготовлены; VPS ещё не создан, Telegram и LLM не настроены. Результаты экспериментов не получены. Выполнение отмечается в [чек-листе](docs/evidence-checklist.md).
+
+Агент — [Hermes Agent](https://github.com/NousResearch/hermes-agent). LLM — OpenRouter с бесплатной моделью, поддерживающей tools и контекст ≥64K. Основной VPS — Oracle Always Free; резерв для учебного периода — AWS Free plan. Подробности и ограничения: [выбор VPS](docs/vps.md).
+
+## Архитектура
+
+```mermaid
+flowchart LR
+    User[Владелец] <--> Telegram[Telegram Bot API]
+    Telegram <-->|исходящий polling| Agent[Hermes gateway в Docker]
+    Agent <--> LLM[OpenRouter API]
+    Agent --> Data[Данные и память /opt/data]
+    Agent --> Workspace[Рабочие файлы /workspace]
+    Cron[Планировщик Hermes] --> Agent
+    Docker[Docker restart unless-stopped] --> Agent
+```
+
+Порты контейнера наружу не публикуются. В контейнер передаются только `data/` и `workspace/`. Терминальные инструменты работают внутри контейнера. Изменение рабочего каталога само по себе не является изоляцией.
+
+## Структура
+
+```text
+compose.yaml             образ, mounts, restart и ротация Docker-логов
+.env.example             пример настроек Compose без секретов
+scripts/                 подготовка VPS, настройка и проверки
+skills/                  собственный research-source-review
+templates/memories/      исходные USER.md и MEMORY.md
+tests/                   проверки ограничения доступа и редактирования токенов
+docs/deployment.md       пошаговый запуск на VPS
+docs/vps.md              бесплатные варианты и ограничения
+docs/report.md           отчёт P1, заполняемый реальными результатами
+docs/debugging-log.md    журнал реальных ошибок
+docs/evidence-checklist.md  список необходимых доказательств
+docs/security.md         настройки и границы защиты
+evidence/                приватные логи и снимки, исключены из Git
+data/                    состояние Hermes и секреты, исключены из Git
+workspace/               рабочие файлы агента, исключены из Git
+```
+
+## Первый запуск
+
+Команды ниже выполняются **на отдельном Ubuntu VPS** под непривилегированным пользователем с sudo. До настройки шлюза установить лимит расходов на стороне LLM-провайдера. Не использовать VPS с личными файлами и рабочими ключами.
+
+```bash
+git clone https://github.com/ANVISERO/hermes-agent-lab.git
+cd hermes-agent-lab
+bash scripts/bootstrap-host.sh
+```
+
+Для приватного репозитория clone требует авторизации. Чтобы не хранить GitHub-ключ на VPS, после первого коммита можно отправить исходники с этого компьютера по SSH:
+
+```bash
+git archive --format=tar HEAD | ssh ubuntu@VPS_IP 'mkdir -p ~/hermes-agent-lab && tar -xf - -C ~/hermes-agent-lab'
+```
+
+Затем подключиться к VPS, перейти в `~/hermes-agent-lab` и выполнить bootstrap. В архив попадают только закоммиченные файлы, без runtime-секретов.
+
+Переподключиться по SSH, чтобы применилось членство в группе Docker, затем:
+
+```bash
+bash scripts/harden-ssh.sh
+docker run --rm hello-world
+bash scripts/init.sh
+bash scripts/setup.sh
+bash scripts/start.sh
+bash scripts/verify.sh
+```
+
+Перед закрытием первой SSH-сессии проверить вход по ключу во второй. При setup выбрать Telegram и **только свой числовой ID**. `init.sh` сохраняет digest образа и UID/GID в `.env`; Hermes записывает ключи отдельно в `data/.env`.
+
+Скрипт `verify.sh` проверяет часть конфигурации, но не заменяет реальный диалог, отказ постороннему аккаунту, проверку навыков и эксперимент после reboot. Полная последовательность: [развёртывание](docs/deployment.md).
+
+## Проверки и управление
+
+```bash
+bash scripts/status.sh
+bash scripts/logs.sh
+bash scripts/smoke-test.sh
+bash scripts/test-skill.sh https://hermes-agent.nousresearch.com/
+bash scripts/create-demo-cron.sh YOUR_PRIVATE_CHAT_ID
+bash scripts/cron-list.sh
+bash scripts/hermes.sh cron runs JOB_ID --limit 5
+bash scripts/collect-evidence.sh first-start
+bash scripts/restart.sh
+bash scripts/stop.sh
+```
+
+Демо cron одноразовый, через 10 минут. Он получает фактическое время и состояние окружения, сохраняет результат в `/workspace/autonomy-check.log` и отправляет его владельцу. Перед опытом закрыть Telegram на своих устройствах и отключить SSH. Не запускать задачу вручную вместо проверки расписания.
+
+Для reboot: работающий контейнер → `collect-evidence.sh before-reboot` → `sudo reboot` → повторный вход → `status.sh` и `collect-evidence.sh after-reboot` **без ручного запуска контейнера**.
+
+## Локальные проверки проекта
+
+Не требуют VPS, API-ключей, LLM или запущенного Docker daemon:
+
+```bash
+bash scripts/check-local.sh
+```
+
+Это проверка файлов и защитных функций. Она не доказывает, что агент развёрнут.
+
+## Источники и самостоятельная часть
+
+Архитектурный ориентир — [работа Дмитрия Леденцова](https://github.com/DmitryLedentsov/web-eco-task-2), ревизия `343299bee37f49b0107103c85f77266ae408bbea`. Здесь написаны собственные скрипты и навык; чужие логи, скриншоты и результаты не используются как собственные. Отдельное задание T3 в этот проект не включено.
+
+Команды и настройки Hermes сверялись с [официальным Docker workflow](https://hermes-agent.nousresearch.com/docs/user-guide/docker), [Telegram](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram) и [cron](https://hermes-agent.nousresearch.com/docs/user-guide/features/cron). Образ и квоты провайдеров меняются: при развёртывании сохранить фактические версии, digest и лимиты.

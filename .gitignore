@@ -1,0 +1,20 @@
+# Credentials and private Hermes state
+.env
+.env.*
+!.env.example
+data/
+workspace/*
+!workspace/.gitkeep
+evidence/*
+!evidence/.gitkeep
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+# Local tooling
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+.idea/
+.vscode/
