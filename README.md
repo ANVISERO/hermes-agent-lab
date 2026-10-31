@@ -24,22 +24,56 @@ flowchart LR
 ## Структура
 
 ```text
-compose.yaml             образ, mounts, restart и ротация Docker-логов
-.env.example             пример настроек Compose без секретов
-scripts/                 подготовка VPS, настройка и проверки
-skills/                  собственный research-source-review
-templates/memories/      исходные USER.md и MEMORY.md
-tests/                   проверки ограничения доступа и редактирования токенов
-docs/deployment.md       пошаговый запуск на VPS
-docs/vps.md              бесплатные варианты и ограничения
-docs/report.md           отчёт P1, заполняемый реальными результатами
-docs/debugging-log.md    журнал реальных ошибок
-docs/evidence-checklist.md  список необходимых доказательств
-docs/security.md         настройки и границы защиты
-evidence/                приватные логи и снимки, исключены из Git
-data/                    состояние Hermes и секреты, исключены из Git
-workspace/               рабочие файлы агента, исключены из Git
+hermes-agent-lab/
+├── .env.example                         # пример настроек Compose без секретов
+├── .gitignore                           # исключения для секретов и runtime-файлов
+├── README.md                            # описание проекта и быстрый старт
+├── compose.yaml                         # образ, mounts, restart и Docker-логи
+├── docs/
+│   ├── debugging-log.md                 # журнал реальных ошибок
+│   ├── deployment.md                    # пошаговое развёртывание и эксперименты
+│   ├── evidence-checklist.md            # чек-лист доказательств P1
+│   ├── report.md                        # шаблон отчёта
+│   ├── security.md                      # настройки и границы защиты
+│   └── vps.md                           # выбор бесплатного зарубежного VPS
+├── evidence/
+│   └── .gitkeep                         # сохраняет каталог в Git
+├── scripts/
+│   ├── bootstrap-host.sh                # подготовка Ubuntu, Docker и firewall
+│   ├── check-local.sh                   # локальные проверки проекта
+│   ├── check_access.py                  # проверка Telegram allowlist
+│   ├── collect-evidence.sh              # сбор логов и состояния для отчёта
+│   ├── create-demo-cron.sh              # одноразовая задача автономности
+│   ├── cron-list.sh                     # задания и состояние планировщика
+│   ├── harden-ssh.sh                    # настройка SSH по ключу
+│   ├── hermes.sh                        # команды Hermes внутри контейнера
+│   ├── init.sh                          # UID/GID, каталоги и digest образа
+│   ├── lib.sh                           # общие функции скриптов
+│   ├── logs.sh                          # просмотр логов gateway
+│   ├── redact-evidence.py               # скрытие токенов в собранных логах
+│   ├── restart.sh                       # перезапуск контейнера
+│   ├── setup.sh                         # настройка LLM, Telegram и памяти
+│   ├── smoke-test.sh                    # проверка terminal, files и web
+│   ├── start.sh                         # запуск gateway
+│   ├── status.sh                        # состояние контейнера и процессов
+│   ├── stop.sh                          # остановка контейнера
+│   ├── test-skill.sh                    # проверка собственного навыка
+│   └── verify.sh                        # проверки конфигурации P1
+├── skills/
+│   └── research-source-review/
+│       └── SKILL.md                     # собственный навык проверки источников
+├── templates/
+│   └── memories/
+│       ├── MEMORY.md                    # начальный контекст лабораторной
+│       └── USER.md                      # предпочтения пользователя
+├── tests/
+│   ├── test_access.py                   # тесты ограничения доступа
+│   └── test_redaction.py                # тесты скрытия секретов
+└── workspace/
+    └── .gitkeep                         # сохраняет каталог в Git
 ```
+
+В дереве перечислены все 37 файлов репозитория. При настройке дополнительно создаются локальный `.env` и каталог `data/` с конфигурацией, секретами и состоянием Hermes. Они исключены из Git; в `evidence/` и `workspace/` отслеживаются только `.gitkeep`, а собранные доказательства и рабочие файлы остаются приватными.
 
 ## Первый запуск
 
