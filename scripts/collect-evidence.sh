@@ -22,6 +22,8 @@ capture gateway.log docker compose logs --timestamps --no-color --tail=500 herme
 capture container.txt docker inspect hermes-agent-lab --format \
   'image={{.Image}} started={{.State.StartedAt}} running={{.State.Running}} restart={{.HostConfig.RestartPolicy.Name}} privileged={{.HostConfig.Privileged}} mounts={{json .Mounts}}'
 capture processes.txt docker top hermes-agent-lab -eo uid,pid,args
+capture write-safe-root.txt docker compose exec -T --user hermes hermes python3 -c \
+  'import os; print("HERMES_WRITE_SAFE_ROOT=" + os.environ.get("HERMES_WRITE_SAFE_ROOT", "<unset>"))'
 capture skills.txt docker compose exec -T --user hermes hermes hermes skills list
 capture cron.txt docker compose exec -T --user hermes hermes hermes cron list
 capture cron-runs.txt docker compose exec -T --user hermes hermes hermes cron runs --limit 20

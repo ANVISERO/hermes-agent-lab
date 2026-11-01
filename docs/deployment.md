@@ -154,6 +154,18 @@ bash scripts/setup.sh
 
 `init.sh` закрепляет образ через RepoDigest. Совпадающие UID/GID нужны для доступа владельца VPS к своим `data/` и `workspace/`. В мастере указать OpenRouter, free-модель, Telegram и свой ID. Allow-all и доступ групп оставить отключёнными.
 
+В Compose явно задано `HERMES_WRITE_SAFE_ROOT: "/opt/data:/workspace"`. Официальный образ по умолчанию разрешает файловым инструментам запись только в `/opt/data`; одного mount и `terminal.cwd` недостаточно для записи в `/workspace`.
+
+При обновлении этой переменной в уже работающем развёртывании сначала сохранить старый лог, затем на VPS пересоздать контейнер:
+
+```bash
+docker compose config -q
+docker compose up -d --force-recreate hermes
+bash scripts/verify.sh
+```
+
+Обычный `restart` не применяет изменённые переменные Compose. Пересоздание сохраняет каталоги `data/` и `workspace/`; мастер setup заново проходить не требуется. [Документация ограничения записи](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/reference/environment-variables.md#hermes_write_safe_root).
+
 Не менять штатный entrypoint: `/init` официального образа выполняет подготовку с root, затем запускает gateway от непривилегированного пользователя. Это нужно проверить по `docker top`, а не только по пользователю внутри `docker exec`.
 
 В `data/config.yaml` проверить основную модель, auxiliary-модели, fallback и доступные toolsets. В `hermes tools` выбрать бесплатные web_search и web_extract. Не подключать платный backend ради прохождения smoke test.
@@ -170,6 +182,17 @@ bash scripts/collect-evidence.sh first-start
 ## 8. Проверить диалог, инструменты, память и навык
 
 Отправить боту `/start`, обычный вопрос, затем запрос текущего UTC-времени через инструмент. Измерить время от отправки до ответа. Запустить `smoke-test.sh` и проверить реальные tool calls; одной фразы модели «готово» недостаточно.
+
+На VPS сохранить вывод повторного теста отдельно от первого:
+
+```bash
+mkdir -p evidence
+set -o pipefail
+bash scripts/smoke-test.sh 2>&1 | tee evidence/p1-smoke-after-safe-root-fix.txt
+cat workspace/p1-smoke.txt
+```
+
+Скрипт печатает уникальный маркер `P1-FILE-OK ...` и проверяет, что именно он записан в `/workspace/p1-smoke.txt` в текущем запуске. Файл на VPS доступен как `workspace/p1-smoke.txt`. Запись в `/opt/data/p1-smoke.txt` не заменяет эту проверку. Даже при успешной проверке файла отдельно подтвердить в трассе вызовы terminal, файловых инструментов, web_search и web_extract.
 
 Изменить `data/memories/USER.md` и `MEMORY.md` под свою исследовательскую задачу. Записать в память уникальный несекретный маркер, например `P1-LAB-7319`. После `/new` спросить о маркере и предпочтениях, не раскрывая ответа в вопросе.
 

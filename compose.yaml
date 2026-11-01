@@ -10,6 +10,9 @@ services:
     environment:
       HERMES_UID: ${HERMES_UID:?Run bash scripts/init.sh first}
       HERMES_GID: ${HERMES_GID:?Run bash scripts/init.sh first}
+      # The image defaults to /opt/data only; include our mounted workspace.
+      # Keep write_file/patch restricted to these two directories.
+      HERMES_WRITE_SAFE_ROOT: "/opt/data:/workspace"
     volumes:
       # Setup and the persistent gateway use exactly the same data directory.
       - ./data:/opt/data
